@@ -8,4 +8,4 @@ The code inside this file colors the Bitmap display in 4 different colors. More 
 
 ## number guessing game
 
-This is a simple Random Number Guessing game, but it is written in 6502 Assembly. More details can be found in my Blog-Post-TBH
+This is a simple Random Number Guessing game, but it is written in 6502 Assembly. More details can be found in my [Blog-Post](https://stevenpillay.hashnode.dev/random-number-guessing-game)
