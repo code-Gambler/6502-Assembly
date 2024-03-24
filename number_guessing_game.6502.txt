@@ -1,0 +1,168 @@
+; Constants
+define NEWLINE $0d      ; ASCII code for newline character
+define CONSTANT_NUMBER $0081; Memory location to store constant number
+define remaining_guesses $0091
+define guess $0095
+define color $0097
+
+start:
+    LDA #$00    ; set a pointer in memory location $40 to point to $0200
+    STA $40        ; ... low byte ($00) goes in address $40
+    LDA #$02    
+    STA $41        ; ... high byte ($02) goes into address $41
+    LDA #$01    ; color number
+    STA color
+    STA $42
+    LDY #$00    ; set index to 0
+    lda $fe
+    cmp #$30                ; Check if it's a digit
+    bcc start          ; If not, continue reading
+    cmp #$40
+    bcs start
+    sta CONSTANT_NUMBER
+    jsr initialize_game      ; Initialize the game
+    jsr print_instructions   ; Print game instructions
+    jsr input_guess          ; Input user's guess
+    jsr input_loop
+    jsr compare_guess        ; Compare the guess with the constant number
+    jmp start                ; Repeat the game
+
+initialize_game:
+    lda #$04                  ; Initialize remaining guesses to 10
+    sta remaining_guesses
+    rts                      ; Return from subroutine
+
+print_instructions:
+    JSR PRINT
+    dcb 10,"W","e","l","c","o","m","e",32,"t","o",32,"t","h","e",32,"n","u","m","b","e","r",32,"g","u","e","s","s","i","n","g",32,"g","a","m","e",10,00
+    JSR PRINT
+    dcb "Y","o","u",32,"h","a","v","e",32,"3",32,"g","u","e","s","s","e","s",32,"t","o",32 ,"g","u","e","s","s",32,"t","h","e",32,"n","u","m","b","e","r",".",10,00 
+    JSR PRINT
+    dcb "E","n","t","e","r",32,"y","o","u","r",32  ,"g","u","e","s","s",":",00
+    rts                      ; Return from subroutine
+
+input_guess:
+    lda #$00                 ; Initialize guess variable
+    sta guess
+input_loop:
+    lda #$00               ; Initialize accumulator to 0
+read_char:
+    jsr CHRIN           ; Get a character from input
+    cmp #$29                ; Check if it's a digit
+    bcc read_char          ; If not, continue reading
+    cmp #$40
+    bcs read_char
+    ; Convert ASCII digit to binary and store in accumulator
+    sta guess
+    jsr CHROUT
+end_input:
+    jsr compare_guess                    ; Return from subroutine
+
+compare_guess:
+    lda CONSTANT_NUMBER  ; Load the address of the constant number
+    ;lda (CONSTANT_NUMBER_ADDR)  ; Load the constant number from memory
+    cmp guess               ; Compare with user's guess
+    beq correct_guess       ; If equal, go to correct_guess
+    bcs too_low            ; If constant number > guess, go to too_high
+    jmp too_high             ; Otherwise, go to too_low
+
+too_low:
+    JSR PRINT
+    dcb 10,"T","o","o",32,"l","o","w","!",00
+    dec remaining_guesses   ; Decrement remaining guesses
+    bne reask         ; If remaining guesses, get another guess
+    jmp end_game            ; Otherwise, end the game
+
+too_high:
+    JSR PRINT
+    dcb 10,"T","o","o",32,"H","i","g","h"!",00
+    dec remaining_guesses   ; Decrement remaining guesses
+    bne reask         ; If remaining guesses, get another guess
+    jmp end_game            ; Otherwise, end the game
+
+correct_guess:
+    JSR PRINT
+    dcb 10,"C","o","n","g","r","a","t","u","l","a","t","i","o","n","s","!",32,"Y","o","u",32,"g","u","e","s","s","e","d",32,"t","h","e",32,"n","u","m","b","e","r","!",00
+    jmp end_game            ; End the game
+
+reask:
+    JSR LOOP
+    JSR PRINT
+    dcb 10,"E","n","t","e","r",32 ,"a","n","o","t","h","e","r",32,"g","u","e","s","s",":",00
+    JSR input_loop
+end_game:
+    JSR LOOP
+    JSR PRINT
+    dcb 10,"T","h","e",32,"n","u","m","b","e","r",32 ,"w","a","s",":",00
+    lda CONSTANT_NUMBER  ; Load the address of the constant number
+    jsr CHROUT
+    lda #NEWLINE
+    jsr CHROUT
+    brk
+    rts
+; ROM routines
+define SCINIT $ff81       ; Initialize/clear screen
+define CHRIN $ffcf        ; Input character from keyboard
+define CHROUT $ffd2       ; Output character to screen
+define SCREEN $ffed       ; Get screen size
+define PLOT $fff0         ; Get/set cursor coordinates
+
+LOOP:
+     LDA color    
+     STA ($40),y    ; set pixel color at the address (pointer)+Y
+     INY            ; increment index
+     BNE LOOP    ; continue until done the page (256 pixels)
+     INC $41        ; increment the page
+     LDX $41        ; get the current page number
+     rts
+
+; zeropage variables
+define		PRINT_PTR	$00
+define		PRINT_PTR_H	$01
+define		CURRENT		$02
+define		SCRN_PTR	$03
+define		SCRN_PTR_H	$04
+
+; --------------------------------------------------------
+; Print a message
+; 
+; Prints the message in memory immediately after the 
+; JSR PRINT. The message must be null-terminated and
+; 255 characters maximum in length.
+
+PRINT:		pla
+		clc
+		adc #$01
+		sta PRINT_PTR
+		pla
+		sta PRINT_PTR_H
+
+		tya
+		pha
+
+		ldy #$00
+print_next:	lda (PRINT_PTR),y
+		beq print_done
+		
+		jsr CHROUT
+		iny
+		jmp print_next
+
+print_done:	tya
+		clc
+		adc PRINT_PTR
+		sta PRINT_PTR
+
+		lda PRINT_PTR_H
+		adc #$00
+		sta PRINT_PTR_H
+
+		pla
+		tay
+
+		lda PRINT_PTR_H
+		pha
+		lda PRINT_PTR
+		pha
+
+		rts

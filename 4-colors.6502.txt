@@ -1,0 +1,16 @@
+ 	lda #$00	; set a pointer in memory location $40 to point to $0200
+ 	sta $40		; ... low byte ($00) goes in address $40
+ 	lda #$02	
+ 	sta $41		; ... high byte ($02) goes into address $41
+ 	lda #$07	; colour number
+ 	sta $42
+	ldy #$00	; set index to 0
+ loop:	sta ($40),y	; set pixel colour at the address (pointer)+Y
+ 	iny		; increment index
+ 	bne loop	; continue until done the page (256 pixels)
+	inc $42
+	lda $42
+ 	inc $41		; increment the page
+ 	ldx $41		; get the current page number
+ 	cpx #$06	; compare with 6
+ 	bne loop	; continue until done all pages
